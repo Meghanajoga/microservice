@@ -1,0 +1,160 @@
+Book_services/
+app.py
+from flask import Flask, request, jsonify, render_template_string, redirect
+
+app = Flask(_name_)
+books = {}
+
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head><title>Book Service</title></head>
+<body>
+  <h1>📚 Book Service</h1>
+
+  <h2>Add Book</h2>
+  <form method="POST" action="/">
+    Title:<br>
+    <input name="title" required><br>
+    Author:<br>
+    <input name="author" required><br>
+    Genre:<br>
+    <input name="genre" required><br><br>
+    <button type="submit">Add Book</button>
+  </form>
+
+  <h2> Review Books List</h2>
+  {% if books %}
+    <ul>
+      {% for id, book in books.items() %}
+        <li><strong>{{ id }}.</strong> {{ book.title }} by {{ book.author }} ({{ book.genre }})</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No books yet.</p>
+  {% endif %}
+</body>
+</html>
+"""
+
+@app.route('/', methods=['GET', 'POST'])
+def home():
+    if request.method == 'POST':
+        book_id = str(len(books) + 1)
+        books[book_id] = {
+            'title': request.form['title'],
+            'author': request.form['author'],
+            'genre': request.form['genre']
+        }
+        return redirect('/')
+    return render_template_string(HTML_TEMPLATE, books=books)
+
+@app.route('/books/<book_id>', methods=['GET'])
+def get_book(book_id):
+    book = books.get(book_id)
+    if book:
+        return jsonify(book)
+    return jsonify({'error': 'Book not found'}), 404
+
+if _name_ == '_main_':
+    app.run(host='0.0.0.0', port=5000)
+..........................................
+Dockerfile
+FROM python:3.9-slim
+WORKDIR /app
+COPY app.py .
+RUN pip install flask
+CMD ["python", "app.py"]
+...............................................
+
+Review_service/
+app.py
+from flask import Flask, request, jsonify, render_template_string, redirect
+
+app = Flask(_name_)
+reviews = {}
+
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head><title>Review Service</title></head>
+<body>
+  <h1>📝 Review Service</h1>
+
+  <h2>Add Review</h2>
+  <form method="POST" action="/">
+    Book ID:<br>
+    <input name="book_id" required><br>
+    Rating (1-5):<br>
+    <input type="number" min="1" max="5" name="rating" required><br>
+    Comment:<br>
+    <textarea name="comment" required></textarea><br><br>
+    <button type="submit">Add Review</button>
+  </form>
+
+  <h2>Reviews</h2>
+  {% if reviews %}
+    <ul>
+      {% for book_id, revs in reviews.items() %}
+        <li><strong>Book ID {{ book_id }}:</strong>
+          <ul>
+          {% for r in revs %}
+            <li>Rating: {{ r.rating }}, Comment: {{ r.comment }}</li>
+          {% endfor %}
+          </ul>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p>No reviews yet.</p>
+  {% endif %}
+</body>
+</html>
+"""
+
+@app.route('/', methods=['GET', 'POST'])
+def home():
+    if request.method == 'POST':
+        book_id = request.form['book_id']
+        rating = request.form['rating']
+        comment = request.form['comment']
+
+        book_reviews = reviews.setdefault(book_id, [])
+        book_reviews.append({'rating': rating, 'comment': comment})
+
+        return redirect('/')
+    return render_template_string(HTML_TEMPLATE, reviews=reviews)
+
+@app.route('/reviews/<book_id>', methods=['GET'])
+def get_reviews(book_id):
+    return jsonify(reviews.get(book_id, []))
+
+if _name_ == '_main_':
+    app.run(host='0.0.0.0', port=5001)
+..........................................
+
+Dockerfile
+FROM python:3.9-slim
+WORKDIR /app
+COPY app.py .
+RUN pip install flask
+CMD ["python", "app.py"]
+...................................
+
+requirements.txt
+Flask
+.........................................
+
+docker-compose.yml
+version: '3'
+services:
+  book_service:
+    build: ./book_service
+    ports:
+      - "5000:5000"
+
+  review_service:
+    build: ./review_service
+    ports:
+      - "5001:5001"
+
